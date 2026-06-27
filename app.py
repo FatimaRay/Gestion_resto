@@ -107,7 +107,7 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # La requête magique qui récupère les menus pris mis bout à bout
+    # La requête magique qui récupère les menus pris mis bout à boutT
     query = """
         SELECT 
             c.id_commande, 
