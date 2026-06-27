@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>GastroPOS - Dashboard & Stocks</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Signature visuelle dégradée */
+        .glow-mix {
+            background: linear-gradient(135deg, #78350f 0%, #c2410c 40%, #ea580c 70%, #f59e0b 100%);
+        }
+        .stat-gradient-border {
+            background: white;
+            position: relative;
+        }
+        .stat-gradient-border::before {
+            content: "";
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(135deg, #78350f, #ea580c, #f59e0b, #78350f);
+            background-size: 400% 400%;
+            z-index: -1;
+            border-radius: 14px;
+            opacity: 0.1;
+            transition: opacity 0.3s ease;
+        }
+        .stat-gradient-border:hover::before {
+            opacity: 0.8;
+            animation: gradientShift 6s ease infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="bg-stone-100 min-h-screen font-sans">
+    <nav class="glow-mix text-white p-4 shadow-lg flex justify-between items-center">
+        <h1 class="text-xl font-black flex items-center gap-2 tracking-wide uppercase">
+            <span>📈</span> Suivi d'Activité Journalier
+        </h1>
+        <a href="/" class="bg-stone-900/40 text-white border border-white/20 px-4 py-2 rounded-xl shadow hover:bg-stone-900/60 font-semibold transition backdrop-blur-sm">
+            🛒 Retour Caisse/Menu
+        </a>
+    </nav>
+
+    <div class="container mx-auto p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="stat-gradient-border rounded-xl p-6 shadow-sm border border-stone-200/60 transition-all duration-300 transform hover:-translate-y-0.5">
+                <h3 class="text-stone-500 text-xs font-black uppercase tracking-wider">💰 Chiffre d'Affaires Encaissé (Aujourd'hui)</h3>
+                <p class="text-4xl font-black text-green-600 tracking-tight mt-2">{{ recettes_jour }} <span class="text-lg font-bold text-stone-400">FCFA</span></p>
+                <div class="text-xs text-stone-400 italic mt-1 font-medium">Prend en compte uniquement les commandes marquées comme 'Payé'</div>
+            </div>
+            <div class="stat-gradient-border rounded-xl p-6 shadow-sm border border-stone-200/60 transition-all duration-300 transform hover:-translate-y-0.5">
+                <h3 class="text-stone-500 text-xs font-black uppercase tracking-wider">📋 Volume Total des Commandes</h3>
+                <p class="text-4xl font-black text-blue-600 tracking-tight mt-2">{{ commandes|length }}</p>
+                <div class="text-xs text-stone-400 italic mt-1 font-medium">Flux global (En attente, servis, payés compris)</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6 border border-stone-200/60 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 glow-mix opacity-70"></div>
+                <h2 class="text-lg font-black text-stone-800 uppercase tracking-wide mb-4">Flux en Temps Réel</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-stone-50 text-stone-600 text-xs uppercase font-bold tracking-wider">
+                                <th class="p-3.5 border-b border-stone-100">Commande</th>
+                                <th class="p-3.5 border-b border-stone-100">Table / Client</th>
+                                <th class="p-3.5 border-b border-stone-100">Date & Heure</th>
+                                <th class="p-3.5 border-b border-stone-100">Menus Pris</th>
+                                <th class="p-3.5 border-b border-stone-100">Montant</th>
+                                <th class="p-3.5 border-b border-stone-100">Statut du Flux</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-stone-100">
+                            {% for c in commandes %}
+                            <tr class="hover:bg-stone-50/40 transition-colors">
+                                <td class="p-3.5 font-bold text-stone-400">#{{ c.id_commande }}</td>
+                                <td class="p-3.5 font-black text-stone-800">{{ c.reference_client }}</td>
+                                
+                                <td class="p-3.5 text-xs font-semibold text-stone-500">{{ c.date_commande }}</td>
+                                
+                                <td class="p-3.5 text-xs font-bold text-amber-800 italic">
+                                    {{ c.menus_pris if c.menus_pris else 'Aucun article choisi' }}
+                                </td>
+
+                                <td class="p-3.5 font-black text-stone-900">{{ c.total }} F</td>
+                                <td class="p-3.5">
+                                    <form action="/modifier_statut/{{ c.id_commande }}" method="POST">
+                                        <select name="statut" onchange="this.form.submit()" 
+                                                class="p-1.5 border-2 rounded-xl text-xs font-black uppercase tracking-wider focus:outline-none cursor-pointer transition shadow-sm
+                                                {% if c.statut|lower == 'en attente' %} bg-yellow-50 text-yellow-700 border-yellow-200 
+                                                {% elif c.statut|lower == 'servi' %} bg-blue-50 text-blue-700 border-blue-200 
+                                                {% else %} bg-green-50 text-green-700 border-green-200 {% endif %}">
+                                            <option value="en attente" {% if c.statut|lower == 'en attente' %}selected{% endif %}>En attente</option>
+                                            <option value="servi" {% if c.statut|lower == 'servi' %}selected{% endif %}>Servi</option>
+                                            <option value="payé" {% if c.statut|lower == 'payé' %}selected{% endif %}>Payé</option>
+                                        </select>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl p-6 border border-stone-200/60 h-fit relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 glow-mix opacity-70"></div>
+                <h2 class="text-lg font-black text-stone-800 uppercase tracking-wide mb-4">🛒 État des Stocks</h2>
+                <div class="space-y-4">
+                    {% for i in ingredients %}
+                    <div class="p-3.5 rounded-xl border {% if i.quantite_stock < 10 %} bg-red-50/60 border-red-200 {% else %} bg-stone-50/60 border-stone-200/60 {% endif %}">
+                        <div class="flex justify-between font-black text-xs uppercase tracking-wider">
+                            <span class="text-stone-700">{{ i.nom }}</span>
+                            <span class="{% if i.quantite_stock < 10 %} text-red-600 {% else %} text-stone-800 {% endif %}">
+                                {{ i.quantite_stock }} {{ i.unite }}
+                            </span>
+                        </div>
+                        <div class="w-full bg-stone-200 rounded-full h-2 mt-2.5 overflow-hidden">
+                            <div class="h-2 rounded-full {% if i.quantite_stock < 10 %} bg-red-500 {% else %} bg-amber-500 {% endif %}" 
+                                 style="width: {{ [i.quantite_stock, 100]|min }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
