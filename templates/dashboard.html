@@ -110,7 +110,16 @@
 
             <div class="bg-white rounded-2xl shadow-xl p-6 border border-stone-200/60 h-fit relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-1 glow-mix opacity-70"></div>
-                <h2 class="text-lg font-black text-stone-800 uppercase tracking-wide mb-4">🛒 État des Stocks</h2>
+                
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-stone-100">
+                    <h2 class="text-lg font-black text-stone-800 uppercase tracking-wide">🛒 État des Stocks</h2>
+                    <form action="/reinitialiser_stock" method="POST" onsubmit="return confirm('Voulez-vous réinitialiser TOUS les stocks à 100 ?');">
+                        <button type="submit" class="bg-amber-600 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg hover:bg-amber-700 transition cursor-pointer shadow-sm active:scale-95">
+                            🔄 Full 100
+                        </button>
+                    </form>
+                </div>
+
                 <div class="space-y-4">
                     {% for i in ingredients %}
                     <div class="p-3.5 rounded-xl border {% if i.quantite_stock < 10 %} bg-red-50/60 border-red-200 {% else %} bg-stone-50/60 border-stone-200/60 {% endif %}">
@@ -124,6 +133,16 @@
                             <div class="h-2 rounded-full {% if i.quantite_stock < 10 %} bg-red-500 {% else %} bg-amber-500 {% endif %}" 
                                  style="width: {{ [i.quantite_stock, 100]|min }}%"></div>
                         </div>
+
+                        <form action="/ajouter_stock/{{ i.id_ingredient }}" method="POST" class="mt-3 pt-2.5 border-t border-stone-200/40 flex items-center justify-end gap-2">
+                            <label class="text-[10px] font-bold text-stone-400 uppercase">Ajouter :</label>
+                            <input type="number" name="quantite" step="any" min="0.1" required placeholder="Ex: 10" 
+                                   class="w-16 p-1 text-xs border rounded-md focus:outline-none focus:border-amber-500 text-right font-bold bg-white">
+                            <span class="text-[10px] font-bold text-stone-500 w-6">{{ i.unite }}</span>
+                            <button type="submit" class="bg-stone-800 text-white text-[10px] font-bold px-2 py-1 rounded-md hover:bg-stone-900 transition cursor-pointer active:scale-95">
+                                +
+                            </button>
+                        </form>
                     </div>
                     {% endfor %}
                 </div>

@@ -61,26 +61,22 @@ def passer_commande():
             id_p = int(raw_id)
             qte = int(article.get('quantite', 1))
             
-            # Récupération du prix
-            cursor.execute("SELECT prix FROM produit WHERE id_produit = %s", (id_p,))
+            # Récupération du prix (Casse exacte BDD : id_Produit)
+            cursor.execute("SELECT prix FROM produit WHERE id_Produit = %s", (id_p,))
             prod = cursor.fetchone()
             
             if prod:
-                # Nettoyage rigoureux du prix
-                prix_brut = str(prod['prix'])
-                prix_clean = re.sub(r'\D', '', prix_brut.split('.')[0])
-                prix_unitaire = float(prix_clean) if prix_clean else 0.0
-                
+                prix_unitaire = float(prod['prix'])
                 total_facture += prix_unitaire * qte
                 
-                # Insertion de la liaison pour récupérer les menus pris plus tard
+                # Insertion dans ligne_commande (id_commande, id_produit)
                 cursor.execute(
                     "INSERT INTO ligne_commande (id_commande, id_produit, quantite) VALUES (%s, %s, %s)",
                     (id_commande, id_p, qte)
                 )
                 
-                # Étape C : Soustraction des ingrédients
-                cursor.execute("SELECT id_ingredient, quantite_requise FROM recette WHERE id_produit = %s", (id_p,))
+                # Étape C : Soustraction des ingrédients (Casse exacte BDD : id_Produit)
+                cursor.execute("SELECT id_ingredient, quantite_requise FROM recette WHERE id_Produit = %s", (id_p,))
                 recettes = cursor.fetchall()
                 for r in recettes:
                     qte_totale_a_retirer = float(r['quantite_requise']) * qte
@@ -107,7 +103,7 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # La requête magique qui récupère les menus pris mis bout à boutT
+    # Requête de jointure harmonisée (lc.id_produit = p.id_Produit)
     query = """
         SELECT 
             c.id_commande, 
@@ -118,7 +114,7 @@ def dashboard():
             GROUP_CONCAT(CONCAT(p.nom, ' (x', lc.quantite, ')') SEPARATOR ', ') AS menus_pris
         FROM commande c
         LEFT JOIN ligne_commande lc ON c.id_commande = lc.id_commande
-        LEFT JOIN produit p ON lc.id_produit = p.id_produit
+        LEFT JOIN produit p ON lc.id_produit = p.id_Produit
         GROUP BY c.id_commande
         ORDER BY c.date_commande DESC
     """
@@ -147,6 +143,43 @@ def modifier_statut(id_commande):
     conn.commit()
     cursor.close()
     conn.close()
+    return redirect(url_for('dashboard'))
+
+# Action A : Réinitialiser TOUT le stock à 100.00 d'un coup
+@app.route('/reinitialiser_stock', methods=['POST'])
+def reinitialiser_stock():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE ingredient SET quantite_stock = 100.00")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur lors de la réinitialisation : {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('dashboard'))
+
+# Action B : Ajouter une quantité spécifique à un seul ingrédient
+@app.route('/ajouter_stock/<int:id_ingredient>', methods=['POST'])
+def ajouter_stock(id_ingredient):
+    quantite_a_ajouter = request.form.get('quantite')
+    if quantite_a_ajouter:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE ingredient SET quantite_stock = quantite_stock + %s WHERE id_ingredient = %s",
+                (float(quantite_a_ajouter), id_ingredient)
+            )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Erreur lors de l'ajout au stock : {str(e)}")
+        finally:
+            cursor.close()
+            conn.close()
     return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
